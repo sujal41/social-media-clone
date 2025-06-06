@@ -1,5 +1,5 @@
-const { response } = require("express");
 const userService = require("../service/userService")
+const path = require('path');
 
 async function updateEmail( req , res){
     try {
@@ -106,7 +106,45 @@ async function updateProfilePicture( req , res) {
     }
 }
 
+async function uploadPost( req , res ) {
+    try {
+        let { caption } = req.body || "" ;
+        const files = req.files;
+        console.log("files: ",files);
+        const userId = req.user._id;  // extracting id from token to effienctly save posts
+
+        if( !caption ){
+            caption = "";  // because caption can be empty
+        }
+
+        if( !files || files.length === 0){
+            return res.status(400).json({ message: "No post-media files uploaded" });
+        }
+        
+        if( files.length > 5){
+            return res.status(400).json({ message: "upto 5 post-media allowed ! , post not uploaded" });
+        }
+
+
+        // On Windows, file paths often contain backslashes (\) — e.g., C:\Users\sujal\...\\social-media-clone\\public\\uploads\\posts\\userid\\image.jpg
+        // In URLs and most JS environments, forward slashes (/) are expected — e.g., uploads/user/abc.jpg.
+        const media = await files.map(file => file.path.replace(/\\/g, '/'));
+
+        const result = await userService.uploadPost(
+            userId,
+            caption,
+            media  // because upload function has media as a parameter , hence to prevent reference error
+        );
+
+        return res.status(result.statusCode).json({ message: result.message });
+    } catch (error) {
+        console.error('Create Post Error:', error);
+        return res.status(500).json({ message: 'Failed to create post' });
+    }
+}
+
 module.exports = { 
     updateEmail , updateName , 
-    updateUsername , updateProfilePicture
+    updateUsername , updateProfilePicture ,
+    uploadPost
 };

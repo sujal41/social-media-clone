@@ -1,4 +1,5 @@
 const User = require("../models/User");
+const Post = require("../models/Post");
 const path = require('path');
 
 /**
@@ -120,6 +121,7 @@ async function updateUsername( userId , newUsername){
     try {
         
         // check if this user exists
+        
         const user = await User.findOne( { _id: userId } );
         
         if( !user ){
@@ -201,7 +203,44 @@ async function updateProfilePicture( userId , filePath ) {
 
 }
 
+
+async function uploadPost( userId , caption , media ){
+    try {
+        // userId = JSON.parse(userId);  // as we are extracting it from token so it can be in form of object and object is 
+        // getting official username to attach with post as author of the post
+        console.log(userId);
+        const user = await User.findOne( { _id: userId } );
+        console.log("post author would be :" , user.username);
+
+        // we are not assigning username as author because the user can change his
+        // username whenever he wants , and we want a static value for author
+        // hence we are choosing user id
+        console.log("media before saving : ",media);
+        const post = new Post({
+            author: user._id,
+            caption: caption,
+            media: media
+        });
+
+        // // await post.save();  // save is not working giving BSONerror
+        // // we have to create it directly when using object like new Post()
+        await Post.create( post );
+
+        return {
+            statusCode: 201,
+            message: 'Post created successfully'
+        };
+  } catch (error) {
+        console.error('Post Service Error:', error);
+        return {
+        statusCode: 500,
+        message: 'Error while creating post'
+    };
+  }
+}
+
 module.exports = { 
     updateEmail , updateName , 
-    updateUsername , updateProfilePicture
+    updateUsername , updateProfilePicture , 
+    uploadPost
 };

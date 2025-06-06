@@ -18,7 +18,7 @@ const storage = multer.diskStorage({
         // getting extension name from original uploaded file
         const ext = path.extname(file.originalname);
         // giving a unique name to file followed by its original extension name
-        const uniqueName = `profile_${userId}_${Date.now()}.${ext}`; 
+        const uniqueName = `profile_${userId}_${Date.now()}${ext}`;  // the ext will include the . for the extension ex.  .jpg 
 
         cb( null , uniqueName);
     }
