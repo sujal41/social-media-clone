@@ -102,15 +102,48 @@ async function updateProfilePicture( req , res) {
 
     } catch (error) {
         console.log("Error while updating profile picture: ", error);
-        return res.status(500).json({ message: "Internal server error during updating newUsername" });        
+        return res.status(500).json({ message: "Internal server error during updating profile picture" });        
     }
 }
+
+
+async function changeAccountType( req , res ) {
+    try {
+        const userId = req.user._id;
+        const type = req.params.type;
+
+        if( !userId ){
+            return res.status(403).json(  { message: "token is invalid"} );
+        }
+
+        const validAccountTypes = [ "private" , "public" ];
+        if( !validAccountTypes.includes(type) ){
+            return res.status(400).json(  { message: "type of account to change is required in url ( private / public ) !"} );
+        }
+
+        // valid type options are public/private
+        if( type !== "public" && type !== "private"){
+            console.log("given account type:" , type);
+            return res.status(400).json(  { message: " requested change of account type should be private / public only !"} );
+        }
+
+        console.log("before passing : ", userId);
+        const response = await userService.changeAccountType( type , userId );
+        console.log("this reponse" , response);
+        return res.status( response.statusCode ).json( response );
+
+    } catch (error) {
+        console.log("Error while updating account type: ", error);
+        return res.status(500).json({ message: "Internal server error during updating  account type" });        
+    }
+}
+
 
 async function uploadPost( req , res ) {
     try {
         let { caption } = req.body || "" ;
         const files = req.files;
-        console.log("files: ",files);
+        console.log("total files got to upload with post : ",files.length);
         const userId = req.user._id;  // extracting id from token to effienctly save posts
 
         if( !caption ){
@@ -130,10 +163,15 @@ async function uploadPost( req , res ) {
         // In URLs and most JS environments, forward slashes (/) are expected — e.g., uploads/user/abc.jpg.
         const media = await files.map(file => file.path.replace(/\\/g, '/'));
 
+        // extract hashtags from caption
+        const hashtags = caption.match(/#\w+/g) || [];
+
+
         const result = await userService.uploadPost(
             userId,
             caption,
-            media  // because upload function has media as a parameter , hence to prevent reference error
+            media,  // because upload function has media as a parameter , hence to prevent reference error 
+            hashtags
         );
 
         return res.status(result.statusCode).json({ message: result.message });
@@ -143,8 +181,235 @@ async function uploadPost( req , res ) {
     }
 }
 
+
+
+async function searchUsers( req , res ) {
+    try {
+        const currentUserId = req.user._id;  // get id from token
+        const query = req.params.query;
+
+        if( !currentUserId ){
+            return res.status(403).json(  { message: "your token is invalid"} );
+        }
+
+        if( !query ){
+            return res.status(400).json({ message: 'No search query given ! (give query)' });
+        }        
+
+        // handle case-senstive query
+        const regexQuery = new RegExp(query, "i");
+
+        const response = await userService.searchUsers( req , regexQuery ,currentUserId );
+        return res.status( response.statusCode ).json( response );
+        
+
+    } catch (error) {
+        console.log("Error while searching users: ", error);
+        return res.status(500).json({ message: "Internal server error during searching users" });        
+    }
+}
+
+
+async function getProfileDetails( req , res) {
+    try {
+        let username = req.params.username;
+        console.log("username in ",username);
+
+        if(!username){
+            return res.status(400).json({ message: 'No username given ! (give username in url)' });
+        }
+
+        // handle case-senstive username
+        username = new RegExp( username, "i");
+
+        const response = await userService.getProfileDetails( req , username );
+        return res.status( response.statusCode ).json( response );
+
+    } catch (error) {
+        console.log("Error while retriving user profile ", error);
+        return res.status(500).json({ message: "Internal server error during retriving user profile" });        
+    }
+}
+
+
+async function bookmarkPost( req , res ) {
+    try {
+        const userId = req.user._id; // save user id from token
+        const { _id } = req.body; // from url
+
+        
+        if( !userId ){
+            return res.status(403).json(  { message: "your token is invalid"} );
+        }
+
+        if(!_id){
+            return res.status(400).json({ message: 'No Post requested to save ! (give _id of post in body)' });
+        }
+
+        const response = await userService.bookmarkPost( userId , _id );
+        return res.status( response.statusCode ).json( response );
+
+    } catch (error) {
+        console.log("Error while saving post ", error);
+        return res.status(500).json({ message: "Internal server error during saving post" });        
+    }
+}
+
+
+
+async function searchPostsByHashtag( req , res ) {
+    try {
+        // const { userId } = req.user._id;
+        const hashtag = req.params.hashtag;
+
+        // console.log("userid : " , userId);
+        // if( !userId ){
+        //     return res.status(403).json(  { message: "your token is invalid"} );
+        // }
+
+        if( !hashtag ){
+            return res.status(403).json(  { message: "please give one /hashtag name in url"} );
+        }
+
+        const response = await userService.searchPostsByHashtag( hashtag );
+        return res.status( response.statusCode ).json( response );        
+
+
+    } catch (error) {
+        console.log("Error while saving post ", error);
+        return res.status(500).json({ message: "Internal server error during saving post" });        
+    }
+}
+
+
+async function likeOrUnlikePost( req , res) {
+    try {
+        const { postId } = req.params;
+        const userId = req.user.id;  
+
+        if( !postId ){
+            return res.status(403).json(  { message: "please give postId in url"} );
+        }
+
+        const response = await userService.likeOrUnlikePost( userId , postId );
+        return res.status( response.statusCode ).json( response );        
+
+    } catch (error) {
+        console.log("Error while liking/unliking post ", error);
+        return res.status(500).json({ message: "Internal server error during liking/unliking post" });        
+    }
+}
+
+
+
+async function addComment( req , res ) {
+    try {
+        const { postId } = req.params;
+        const { comment } = req.body;
+        const userId = req.user.id;
+
+        if( !postId ){
+            return res.status(403).json(  { message: "please give postId in url"} );
+        }
+
+        if( !comment ){
+            return res.status(403).json(  { message: "comment can't be empty"} );
+        }
+
+        const response = await userService.addComment( userId , postId , comment );
+        return res.status( response.statusCode ).json( response );        
+
+    } catch (error) {
+        console.log("Error while commengitn on post ", error);
+        return res.status(500).json({ message: "Internal server error during comming on post" });        
+    }
+}
+
+
+async function replyToComment( req , res ) {
+    try {
+        const { commentId } = req.params;
+        const { reply } = req.body;
+        const userId = req.user.id;
+
+        if( !commentId ){
+            return res.status(403).json(  { message: "please give commentId in url !"} );
+        }
+
+        if( !reply ){
+            return res.status(403).json(  { message: "reply on comment can't be empty !"} );
+        }
+
+        const response = await userService.replyToComment( userId , commentId, reply );
+        return res.status( response.statusCode ).json( response );        
+
+    } catch (error) {
+        console.log("Error while replying on comment ", error);
+        return res.status(500).json({ message: "Internal server error during replying on comment" });        
+    }
+}
+
+
+
+
+async function followUnfollowUser( req , res ) {
+    try {
+        const currentUserId = req.user._id; // from token
+        const targetUserId = req.params.userId;  // from url we get this
+
+        if( !targetUserId ){
+            return res.status(403).json(  { message: "please give target user id in url !"} );
+        }
+
+        if (currentUserId === targetUserId) {
+            return res.status(400).json({ message: "You can't follow yourself" });
+        }
+
+
+        const response = await userService.followUnfollowUser( currentUserId ,  targetUserId );
+        return res.status( response.statusCode ).json( response );        
+
+        
+        
+    } catch (error) {
+        console.log("Error while following/unfollowing user ", error);
+        return res.status(500).json({ message: "Internal server error during following/unfollowing user" });        
+    }
+}
+
+
+
+
+async function getFollowersAndFollowing( req , res ) {
+    try {
+
+        const { targetUserId } = req.body;
+        const userId = req.user._id; // the user who is making this request
+
+        console.log("this",targetUserId);
+
+        if( !targetUserId ){
+            return res.status(403).json(  { message: "please provide targetUserId in body to get its follower/following list"} );
+            // return res.status(403).json(  { message: "please provide user id in url to get its follower/following list"} );
+        }
+        
+        const response = await userService.getFollowersAndFollowing( req , userId , targetUserId );
+        return res.status( response.statusCode ).json( response );        
+
+
+    } catch (error) {
+        console.log("Error while getting following / followers list ", error);
+        return res.status(500).json({ message: "Internal server error while getting following / followers list" });        
+    }
+}
+
 module.exports = { 
     updateEmail , updateName , 
     updateUsername , updateProfilePicture ,
-    uploadPost
+    changeAccountType , uploadPost ,
+    searchUsers , searchPostsByHashtag ,
+    getProfileDetails , bookmarkPost ,
+    likeOrUnlikePost , addComment ,
+    replyToComment , followUnfollowUser ,
+    getFollowersAndFollowing
 };

@@ -1,11 +1,12 @@
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const { v4: uuidv4} =  require('uuid'); // for setting random userProfilePictureName
 
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
     const userId = req.user._id;
-    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'posts', userId.toString());
+    const uploadPath = path.join(__dirname, '..', 'public', 'uploads', 'posts');
     fs.mkdirSync(uploadPath, { recursive: true });
     cb(null, uploadPath);
   },
@@ -14,7 +15,11 @@ const storage = multer.diskStorage({
     // getting extension name from original uploaded file
     const ext = path.extname(file.originalname);
     // giving a unique name to file followed by its original extension name
-    const uniqueName = `post_${userId}_${Date.now()}${ext}`;
+    // we will store this url using service in database with user's record
+    // so even if the post file name is random we can still get it using userId
+    
+    const uniqueName = `post_${uuidv4()}_${Date.now()}${ext}`;  // the ext will include the . for the extension ex.  .jpg 
+    
     cb(null, uniqueName);
   },
 });

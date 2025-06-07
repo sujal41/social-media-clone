@@ -2,10 +2,10 @@ const mongoose = require('mongoose');
 
 const CommentSchema = new mongoose.Schema({
   post: { type: mongoose.Schema.Types.ObjectId, ref: 'Post', required: true },
-  author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
+  // author: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true },
   comment: { type: String, required: true },
   replies: [{
-    author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    user: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     reply: { type: String },
     createdAt: { type: Date, default: Date.now }
   }],
