@@ -216,6 +216,12 @@ async function changeAccountType( type , userId ) {
 
         const accountType = (type === "public") ? false : true;  // if type public then make false , such that isPrivate=false
 
+        if( !user ){
+            return {
+                statusCode: 404,
+                message: "we are having problem to find your account..."
+            }
+        }
         // if the account is already the same type , means no changes
         if( accountType === user.isPrivate ){
             return {
@@ -349,7 +355,7 @@ async function searchUsers( req , regexQuery , currentUserId ) {
     }
 }
 
-async function getProfileDetails( req , username) {
+async function getProfileDetails( req , username , currentUser ) {
     try {
         console.log("got this : ", username);
         const user = await User.findOne({ username }).select('username name bio profilePicture');
@@ -359,6 +365,25 @@ async function getProfileDetails( req , username) {
                 statusCode: 404,
                 message:  'User not found' 
             };
+        }
+
+
+        // check if this is a private acount , if it is
+        // then check if the current user is his follower or not
+        // if not then only give username , name , bio , followers-following don't give posts
+        if( user.isPrivate ) {  // true/false
+            // means this is a private account return only username, name , bio , followers-following (only numbers)
+            return {
+                statusCode: 200 , 
+                message: "follow this account to see their posts" ,
+                data: {
+                    userName: user.userName , 
+                    name: user.name , 
+                    bio: user.bio ,
+                    followers: user.followers.length ,     // [ ] only total not details
+                    following: user.following.length ,    // [ ] only total not details
+                }
+            }
         }
 
         // const id = await Post.find();
@@ -374,6 +399,8 @@ async function getProfileDetails( req , username) {
             name: user.name,
             bio: user.bio,
             profilePicture: user.profilePicture,
+            followers: user.followers.length ,     // [ ] only total not details
+            following: user.following.length ,    // [ ] only total not details
             posts: posts // here
         };
 

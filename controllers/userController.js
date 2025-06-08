@@ -212,6 +212,7 @@ async function searchUsers( req , res ) {
 
 async function getProfileDetails( req , res) {
     try {
+        const currentUser = req.user._id;
         let username = req.params.username;
         console.log("username in ",username);
 
@@ -222,7 +223,7 @@ async function getProfileDetails( req , res) {
         // handle case-senstive username
         username = new RegExp( username, "i");
 
-        const response = await userService.getProfileDetails( req , username );
+        const response = await userService.getProfileDetails( req , username , currentUser );
         return res.status( response.statusCode ).json( response );
 
     } catch (error) {

@@ -68,7 +68,7 @@ router.post('/comment/reply/:commentId', authenticateToken, replyToComment);
 // for follow or unfollow
 router.patch('/follow/:userId', authenticateToken, followUnfollowUser);
 
-// for to get  folloing and followers list
+// for to get  following and followers list
 router.post('/followers-following/', authenticateToken, getFollowersAndFollowing);
 
 
