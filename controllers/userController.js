@@ -1,6 +1,7 @@
 const userService = require("../service/userService")
 const path = require('path');
 
+// update mail of the current user
 async function updateEmail( req , res){
     try {
         // extracting user id from token
@@ -35,7 +36,7 @@ async function updateEmail( req , res){
     }   
 }
 
-
+// update name of the current user
 async function updateName( req , res){
     try {
         // extracting user id from token
@@ -63,6 +64,7 @@ async function updateName( req , res){
 }
 
 
+// update username of the current user
 async function updateUsername( req , res){
     try {
         // extracting user id from token
@@ -89,7 +91,7 @@ async function updateUsername( req , res){
     }
 }
 
-
+// update profile picture of the current user
 async function updateProfilePicture( req , res) {
     try {
         if( !req.file ){
@@ -106,7 +108,7 @@ async function updateProfilePicture( req , res) {
     }
 }
 
-
+// change account type of the current user
 async function changeAccountType( req , res ) {
     try {
         const userId = req.user._id;
@@ -138,7 +140,7 @@ async function changeAccountType( req , res ) {
     }
 }
 
-
+// upload a post by the current user to his profile
 async function uploadPost( req , res ) {
     try {
         let { caption } = req.body || "" ;
@@ -182,7 +184,7 @@ async function uploadPost( req , res ) {
 }
 
 
-
+// search users
 async function searchUsers( req , res ) {
     try {
         const currentUserId = req.user._id;  // get id from token
@@ -209,7 +211,7 @@ async function searchUsers( req , res ) {
     }
 }
 
-
+// get profile details of a specific user
 async function getProfileDetails( req , res) {
     try {
         const currentUser = req.user._id;
@@ -232,11 +234,11 @@ async function getProfileDetails( req , res) {
     }
 }
 
-
+// bookmark / save a post to user profile
 async function bookmarkPost( req , res ) {
     try {
         const userId = req.user._id; // save user id from token
-        const { _id } = req.body; // from url
+        const { _id } = req.body; // from body
 
         
         if( !userId ){
@@ -257,7 +259,7 @@ async function bookmarkPost( req , res ) {
 }
 
 
-
+// search posts by using a hashtag
 async function searchPostsByHashtag( req , res ) {
     try {
         // const { userId } = req.user._id;
@@ -282,7 +284,7 @@ async function searchPostsByHashtag( req , res ) {
     }
 }
 
-
+// like or unlike a post
 async function likeOrUnlikePost( req , res) {
     try {
         const { postId } = req.params;
@@ -302,7 +304,7 @@ async function likeOrUnlikePost( req , res) {
 }
 
 
-
+// comment on a post
 async function addComment( req , res ) {
     try {
         const { postId } = req.params;
@@ -326,12 +328,12 @@ async function addComment( req , res ) {
     }
 }
 
-
+// reply to a comment on a post
 async function replyToComment( req , res ) {
     try {
         const { commentId } = req.params;
         const { reply } = req.body;
-        const userId = req.user.id;
+        const userId = req.user._id;
 
         if( !commentId ){
             return res.status(403).json(  { message: "please give commentId in url !"} );
@@ -352,7 +354,7 @@ async function replyToComment( req , res ) {
 
 
 
-
+// follow or unfollow a user
 async function followUnfollowUser( req , res ) {
     try {
         const currentUserId = req.user._id; // from token
@@ -380,7 +382,7 @@ async function followUnfollowUser( req , res ) {
 
 
 
-
+// get following and followers lists of a user
 async function getFollowersAndFollowing( req , res ) {
     try {
 

@@ -3,6 +3,8 @@ const Post = require("../models/Post");
 const Comment = require("../models/Comment");
 const path = require('path');
 const mongoose = require('mongoose');//we will use this for convering string id to object id
+const { ObjectId } = require('mongoose').Types;
+
 
 
 /**
@@ -176,6 +178,16 @@ async function updateUsername( userId , newUsername , currentUserId){
 }
 
 
+
+/**
+ * Update the profile picture of the user , multer module saves the uploaded
+ * picture in diskStorage i.e, public/uploads/user-profile-picture
+ * and file path from request is passed to functino as parameter
+ * 
+ * @param {String} userId - userId to find and update the profile picture
+ * @param {String} filePath - the of the file on diskStorage to save in database
+ * @returns {Promise<Object>} - statuseCode and message
+ */
 async function updateProfilePicture( userId , filePath ) {
     try {
         const relativePath = path.relative( path.join( __dirname , '..' , 'public') , filePath);
@@ -207,6 +219,14 @@ async function updateProfilePicture( userId , filePath ) {
 }
 
 
+
+/**
+ * Changes account type ( public -> private , private -> public )
+ * 
+ * @param {String} type - type of account to change ( private / public)
+ * @param {String} userId - to find user and change account type
+ * @returns {Promise<Object>} - statusCode and message
+ */
 async function changeAccountType( type , userId ) {
     try {
         // check if it is the same account type which already is
@@ -262,6 +282,15 @@ async function changeAccountType( type , userId ) {
 }
 
 
+
+/**
+ * 
+ * @param {String} userId  - to find user by id
+ * @param {String} caption - to attach and save it with post
+ * @param {Array} media - Array containing multiple media files path with this format : e.g., uploads/user/abc.jpg.
+ * @param {Array} hashtags - Array of Hashtags with this format eg., #goku #coding
+ * @returns {Promise<Object>} - statuseCode and message
+ */
 async function uploadPost( userId , caption , media , hashtags ){
     try {
         // userId = JSON.parse(userId);  // as we are extracting it from token so it can be in form of object and object is 
@@ -305,6 +334,14 @@ async function uploadPost( userId , caption , media , hashtags ){
 }
 
 
+
+/**
+ * Filters items that match the given case-insensitive regex.
+ * @param {import('express').Request} req - Express request object.
+ * @param {RegExp} regexQuery - Case-insensitive regular expression to match items.
+ * @param {String} currentUserId - the user requesting the search
+ * @returns {Promise<Object>} - statusCode , message and array of users , each includes username,name,bio,profilePicture
+ */
 async function searchUsers( req , regexQuery , currentUserId ) {
     try {
         // get only 15 users with match from database with name , username , bio , profilePicture
@@ -355,10 +392,26 @@ async function searchUsers( req , regexQuery , currentUserId ) {
     }
 }
 
+
+/**
+ * get profile details of the specified user
+ * 
+ * @param {import('express'.Request)} req - Express req object
+ * @param {String} username - the id of user to get profile details about
+ * @param {String} currentUser - the id of the user requesting the specified profile details
+ * 
+ * @returns {Promise<Object>} - statuseCode , message and an object containing user data based on type of privacy account
+ *                              private (if not followed) : username , name , bio , profilePicture , 
+ *                                                          following(count), followers(count) , posts(count)
+ * 
+ *                              same user , public , and private(if followed) : username , name , bio ,profilePicture , following(count), 
+ *                                                                  followers(count) , posts(count), 
+ *                                  
+ */
 async function getProfileDetails( req , username , currentUser ) {
     try {
         console.log("got this : ", username);
-        const user = await User.findOne({ username }).select('username name bio profilePicture');
+        const user = await User.findOne({ username });
 
         if (!user) {
             return {
@@ -368,22 +421,58 @@ async function getProfileDetails( req , username , currentUser ) {
         }
 
 
+        console.log("private acc or not" , user);
+        // converting currentUser id to object id to check if it is present or not in 
+        // target user's followers .  ex. 874c3f2c25gf2c -> { $oid: "874c3f2c25gf2c" } 
+        const currentUserObjectId = new mongoose.Types.ObjectId(currentUser); // Convert string to ObjectId
+
         // check if this is a private acount , if it is
         // then check if the current user is his follower or not
         // if not then only give username , name , bio , followers-following don't give posts
         if( user.isPrivate ) {  // true/false
-            // means this is a private account return only username, name , bio , followers-following (only numbers)
-            return {
-                statusCode: 200 , 
-                message: "follow this account to see their posts" ,
-                data: {
-                    userName: user.userName , 
-                    name: user.name , 
-                    bio: user.bio ,
-                    followers: user.followers.length ,     // [ ] only total not details
-                    following: user.following.length ,    // [ ] only total not details
+            
+
+            // is same private user is requesting
+            
+            const isSamePrivateUser = currentUser === test[0].$oid.toString();
+            console.log("is same private user requesting details: ",isSamePrivateUser);
+
+            // means this is a private account,
+            // and if the current user is not the follower of this account then
+            //  return only username, name , bio , followers-following (only numbers)
+            
+            // check if any follower { $oid: "874c3f2c25gf2c" }  === current user 874c3f2c25gf2c => true /false
+            // if this private user has no followers means the current user is also not a follower 
+            // this should not be the same user who's private account this is , because he should have posts details also
+            console.log(user.followers , currentUserObjectId)
+            if ( !isSamePrivateUser || user.followers.length == 0 || user.followers.some(follower => follower["$oid"] === currentUserObjectId)){
+                
+                // replacing the profilePicture (saved as path )
+                // to serve the actual serverUrl , so front-end can download the profilie picture
+
+                // profilePicture is stored as: uploads\\user-profile-picture\\<imgename>.<extension>
+                // and we will serve it as localhost:3001/profile-picture/<imgename>.<extension> , so it can be downloaded at front-end
+                const downloadableProfilePicturePath = `${req.protocol}://${req.get('host')}/profile-picture/`;
+                user.profilePicture =  user.profilePicture 
+                                        ?
+                                            (user.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
+                                        :
+                                            downloadableProfilePicturePath + "default-profile-picture.jpg"  // when no profile picture uploaded by user show default
+
+                return {
+                    statusCode: 200 , 
+                    message: "follow this account to see their posts" ,
+                    data: {
+                        userName: user.username , 
+                        name: user.name || "", 
+                        bio: user.bio || "",
+                        profilePicture: user.profilePicture,
+                        followers: Array.isArray(user.followers) ? user.followers.length : [] ,     // [ ] only total not details and empty if no followers
+                        following: Array.isArray(user.following) ? user.following.length  : [],        // [ ] only total not details and empty if no followingss
+                    }
                 }
             }
+            
         }
 
         // const id = await Post.find();
@@ -392,16 +481,17 @@ async function getProfileDetails( req , username , currentUser ) {
         // Finfinsing posts authored by this user
         const posts = await Post.find({ author: user._id });
 
-        
+
+
         // we are here combining posts with user object
         let completeUserProfile = {
             username: user.username,
             name: user.name,
             bio: user.bio,
             profilePicture: user.profilePicture,
-            followers: user.followers.length ,     // [ ] only total not details
-            following: user.following.length ,    // [ ] only total not details
-            posts: posts // here
+            followers: Array.isArray(user.followers) ? user.followers.length : [] ,     // [ ] only total not details and empty if no followers
+            following: Array.isArray(user.following) ? user.following.length  : [],        // [ ] only total not details and empty if no followingss
+            posts: Array.isArray(posts) ? posts : [] // here if not posts return empty []
         };
 
         // replacing the post file (saved as path )
@@ -410,25 +500,38 @@ async function getProfileDetails( req , username , currentUser ) {
         // post file is stored as: uploads\\posts\\<imgename>.<extension>
         // and we will serve it as localhost:3001/posts/<imgename>.<extension> , so it can be downloaded at front-end
         const downloadablePostMediaPath = `${req.protocol}://${req.get('host')}/posts/`;
+
+        if (posts.length !== 0){
+
+            completeUserProfile.posts = await Promise.all(
+                completeUserProfile.posts.map(async post => {
+                    let updatedMedia = [];
+                    // transforming only if the media exists
+                    if (Array.isArray(post.media) && post.media.length > 0) {
+                        updatedMedia = post.media.map(mediaPath => 
+                            `${downloadablePostMediaPath}${path.basename(mediaPath)}`
+                        );
+                    }
+
+                    // Get comments for this post
+                    const comments = await Comment.find({ post: post._id })
+                                                .populate({
+                                                    path: 'replies.user', 
+                                                    select: 'username'
+                                                })  // optional
+                                                .sort({ createdAt: -1 })
+                                                .limit(7);  // 7 comments per posts
+
+                    return {
+                        ...post._doc,   // keep other fields
+                        media: updatedMedia,
+                        comments, // attach comments to post
+                    };
+                })
+            );
+        }
+       
         
-        completeUserProfile.posts = completeUserProfile.posts.map(post => {
-            // Only transform if media exists and is a non-empty array
-            if (Array.isArray(post.media) && post.media.length > 0) {
-                const updatedMedia = post.media.map(mediaPath => 
-                    `${downloadablePostMediaPath}${path.basename(mediaPath)}`
-                );
-
-                return {
-                    ...post._doc, // keep other fields
-                    media: updatedMedia
-                };
-            }
-
-            return {
-                ...post._doc,
-                media: []
-            };
-        });
 
         
         // replacing the profilePicture (saved as path )
@@ -439,7 +542,7 @@ async function getProfileDetails( req , username , currentUser ) {
         const downloadableProfilePicturePath = `${req.protocol}://${req.get('host')}/profile-picture/`;
         completeUserProfile.profilePicture =  completeUserProfile.profilePicture 
                                 ?
-                                    (user.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
+                                    (completeUserProfile.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
                                 :
                                     downloadableProfilePicturePath + "default-profile-picture.jpg"  // when no profile picture uploaded by user show default
 
@@ -461,7 +564,13 @@ async function getProfileDetails( req , username , currentUser ) {
 }
 
 
-
+/**
+ * save a post for the current user to view later
+ * 
+ * @param {String} userId - current user id extracted from token
+ * @param {String} _id - _id of post to save
+ * @returns {Promise<Object>} - object with statusCode and message
+ */
 async function bookmarkPost( userId , _id ) {
     try {
         // check if the post exists
@@ -514,7 +623,12 @@ async function bookmarkPost( userId , _id ) {
 
 
 
-
+/**
+ * searches posts by using the given hashtag name
+ * 
+ * @param {String} hashtag  - "goku" or "#goku"
+ * @returns {Promise<Object>} - statusCode , message , data which includes posts data
+ */
 async function searchPostsByHashtag( hashtag ) {
     try {
         // if hashtag = "goku" or "#goku"
@@ -548,7 +662,13 @@ async function searchPostsByHashtag( hashtag ) {
 
 
 
-
+/**
+ * to like or unlike a post
+ * 
+ * @param {String} userId - the current user's id who want to like / unlike targeted post
+ * @param {String} postId - the post id whom the current user want to like/unlike
+ * @returns {Promise<Object>} - statuseCode , message , likesCount (updated)
+ */
 async function likeOrUnlikePost( userId , postId) {
     try {
         // checking if th epost exists
@@ -586,7 +706,14 @@ async function likeOrUnlikePost( userId , postId) {
 }
 
 
-
+/**
+ * to add a comment on a post
+ * 
+ * @param {String} userId - current user id who wants to comment on pots
+ * @param {String} postId - the post id on which the current user wants to comment
+ * @param {String} comment - comment which the current users want to on the post
+ * @returns {Promise<Object>} - statusCode , message , with comment object which includes postId , author(who's comment is) , comment
+ */
 async function addComment( userId , postId , comment ) {
     
         const newComment = new Comment({
@@ -606,6 +733,14 @@ async function addComment( userId , postId , comment ) {
 
 
 
+/**
+ * to reply on a comment
+ * 
+ * @param {String} userId - current user id who wants to reply on comment
+ * @param {String} commentId - comment's id to reply on
+ * @param {String} reply - reply user wants to give
+ * @returns {Promise<Object>} - statusCode , message and updated reply
+ */
 async function  replyToComment( userId , commentId, reply ) {
 
     const commentDoc = await Comment.findById(commentId);
@@ -616,8 +751,9 @@ async function  replyToComment( userId , commentId, reply ) {
         }
     }
 
+    console.log("this user id" , userId);
     commentDoc.replies.push({
-        author: userId,
+        user: userId,  // the userid doing this reply
         reply,
         createdAt: new Date()
     });
@@ -634,6 +770,13 @@ async function  replyToComment( userId , commentId, reply ) {
 
 
 
+/**
+ * to follow / unfollow a user
+ * 
+ * @param {String} currentUserId - the current user's id who wants to follow/unfollow 
+ * @param {String} targetUserId - the target user's id whom the current user wants to follow/unfollow
+ * @returns {Promise<Object>} - statusCode , message
+ */
 async function followUnfollowUser(currentUserId, targetUserId) {
     try {
         console.log(currentUserId, targetUserId);
@@ -692,7 +835,14 @@ async function followUnfollowUser(currentUserId, targetUserId) {
 
 
 
-
+/**
+ * to follow unfollow a user
+ * 
+ * @param {import('express').Request} req - Express request object.
+ * @param {String} userId - current user's id who wants to follow/unfollow
+ * @param {String} targetUserId - the user whom the current user wants to follow / unfollow
+ * @returns 
+ */
 async function getFollowersAndFollowing( req , userId , targetUserId ){
     try {
         // check if this target user exists
