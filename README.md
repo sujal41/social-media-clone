@@ -414,7 +414,7 @@ Same as Signup.
 ### 15. Reply to a Comment
 
 **POST** `/user/comment/reply/:commentId`
-*example* : `http://localhost:3001/api/user/comment/<get-comment-id-from-comment-on-post-endpoint>`
+*example* : `http://localhost:3001/api/user/comment/reply/<get-comment-id-from-comment-on-post-endpoint>`
 
 #### Request Body
 
