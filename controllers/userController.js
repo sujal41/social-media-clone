@@ -79,7 +79,7 @@ async function updateUsername( req , res){
             return res.status(401).json( { message: "new newUsername is required" } );
         }
 
-        const response = await userService.updateUsername( userId , newUsername );
+        const response = await userService.updateUsername( userId , newUsername , userId );
         
         return res.status( response.statusCode ).json( response );
 

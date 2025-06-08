@@ -120,7 +120,7 @@ async function updateName( userId , newName){
  * @param {string} newUsername - The new username to set
  * @returns {Promise<Object>} - Status code and message
  */
-async function updateUsername( userId , newUsername){
+async function updateUsername( userId , newUsername , currentUserId){
     try {
         
         // check if this user exists
@@ -157,8 +157,8 @@ async function updateUsername( userId , newUsername){
         }
     
         // update the name
-        // user.username = newUsername;
-        // await user.save();
+        user.username = newUsername;
+        await user.save();
         
         return {
             statusCode: 201,
@@ -326,7 +326,11 @@ async function searchUsers( req , regexQuery , currentUserId ) {
             name: user.name,
             bio: user.bio,
             
-            profilePicture: (user.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
+            profilePicture: user.profilePicture 
+                                ?
+                                    (user.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
+                                :
+                                    downloadableProfilePicturePath + "default-profile-picture.jpg"  // when no profile picture uploaded by user show default
 
         }))
 
@@ -397,6 +401,7 @@ async function getProfileDetails( req , username) {
                 media: []
             };
         });
+
 
 
         
@@ -547,7 +552,7 @@ async function addComment( userId , postId , comment ) {
     
         const newComment = new Comment({
             post: postId,
-            author: userId,
+            author: userId, // the user who is commenting
             comment
         });
 
@@ -704,7 +709,7 @@ async function getFollowersAndFollowing( req , userId , targetUserId ){
                     ? 
                         follower.profilePicture.replace('uploads\\user-profile-picture\\', downloadableProfilePicturePath)
                     : 
-                        ''
+                        ''  //if not then empty
         }));
 
         // format following
