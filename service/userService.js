@@ -352,7 +352,7 @@ async function searchUsers( req , regexQuery , currentUserId ) {
 async function getProfileDetails( req , username) {
     try {
         console.log("got this : ", username);
-        const user = await User.findOne({ username }).select('username name bio');
+        const user = await User.findOne({ username }).select('username name bio profilePicture');
 
         if (!user) {
             return {
@@ -373,6 +373,7 @@ async function getProfileDetails( req , username) {
             username: user.username,
             name: user.name,
             bio: user.bio,
+            profilePicture: user.profilePicture,
             posts: posts // here
         };
 
@@ -402,7 +403,18 @@ async function getProfileDetails( req , username) {
             };
         });
 
+        
+        // replacing the profilePicture (saved as path )
+        // to serve the actual serverUrl , so front-end can download the profilie picture
 
+        // profilePicture is stored as: uploads\\user-profile-picture\\<imgename>.<extension>
+        // and we will serve it as localhost:3001/profile-picture/<imgename>.<extension> , so it can be downloaded at front-end
+        const downloadableProfilePicturePath = `${req.protocol}://${req.get('host')}/profile-picture/`;
+        completeUserProfile.profilePicture =  completeUserProfile.profilePicture 
+                                ?
+                                    (user.profilePicture).replace("uploads\\user-profile-picture\\" , downloadableProfilePicturePath)
+                                :
+                                    downloadableProfilePicturePath + "default-profile-picture.jpg"  // when no profile picture uploaded by user show default
 
         
         return {
