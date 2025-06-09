@@ -16,7 +16,7 @@ http://localhost:3001/api
 Before running the application, you must configure your environment variables. Create a `.env` file in your project root directory with the following variables:
 
 ```env
-PORT=5000
+PORT=3001
 SECRET_KEY=your_jwt_secret_key_here
 MONGO_URI=mongodb://127.0.0.1:27017/socialMediaClone
 ```
