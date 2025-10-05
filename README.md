@@ -1,4 +1,4 @@
-# API Documentation: Social Media App
+# API Documentation: Social Media App (Backend)
 
 ## Base URL
 
